@@ -1,6 +1,5 @@
-"""
-Cleaning and feature engineering for the UCI Diabetes 130-US Hospitals dataset.
-"""
+
+#Cleaning and feature engineering for the UCI Diabetes 130-US Hospitals dataset.
 import pandas as pd
 import numpy as np
 
@@ -41,24 +40,22 @@ def map_diagnosis(code):
 def load_and_clean(path):
     df = pd.read_csv(path)
 
-    # Replace '?' placeholder with proper NaN
+    # Replace '?' with NAN
     df = df.replace("?", np.nan)
 
-    # Drop columns that are almost entirely missing or are pure identifiers/no signal
+    # Drop columns that are almost entirely missing 
     df = df.drop(columns=["weight", "payer_code", "encounter_id"])
 
-    # medical_specialty: ~49% missing -> keep as its own "Missing" category rather than drop
     df["medical_specialty"] = df["medical_specialty"].fillna("Missing")
 
-    # race: small amount missing -> fill as "Unknown"
+    # race: small amount missing so fill as "Unknown"
     df["race"] = df["race"].fillna("Unknown")
 
-    # Lab results are NaN when the test was not administered -> that's
-    # itself informative, so encode explicitly rather than imputing a value
+  
     df["max_glu_serum"] = df["max_glu_serum"].fillna("Not Tested")
     df["A1Cresult"] = df["A1Cresult"].fillna("Not Tested")
 
-    # Drop the small number of rows with unknown/invalid gender
+    # Drop the small number of rows with unknown gender
     df = df[df["gender"] != "Unknown/Invalid"]
 
     # Diagnosis columns -> broad clinical category
@@ -66,24 +63,19 @@ def load_and_clean(path):
         df[col + "_cat"] = df[col].apply(map_diagnosis)
     df = df.drop(columns=["diag_1", "diag_2", "diag_3"])
 
-    # Discharge disposition: codes 11, 13, 14, 19, 20, 21 = expired/hospice -> exclude
-    # (can't be "readmitted" meaningfully if the patient died)
+  
     expired_codes = [11, 13, 14, 19, 20, 21]
     df = df[~df["discharge_disposition_id"].isin(expired_codes)]
 
-    # Binary target: readmitted within 30 days = 1, else 0
+    
     df["readmitted_30d"] = (df["readmitted"] == "<30").astype(int)
     df = df.drop(columns=["readmitted"])
 
-    # Age: convert bracket strings like "[70-80)" to midpoint numeric
     def age_midpoint(bracket):
         low, high = bracket.strip("[)").split("-")
         return (int(low) + int(high)) / 2
 
     df["age_numeric"] = df["age"].apply(age_midpoint)
-
-    # One row per encounter is fine for this project; note patient_nbr is kept
-    # for reference but not used as a model feature directly.
 
     return df
 
